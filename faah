@@ -1,0 +1,81 @@
+#!/usr/bin/env bash
+# faah - plays a sound when a command fails (or succeeds)
+
+FAAH_VERSION="0.1.0"
+FAAH_HOME="${FAAH_HOME:-$HOME/.faah}"
+FAAH_SOUND="${FAAH_SOUND:-fahhhhh}"
+FAAH_SUCCESS_SOUND="${FAAH_SUCCESS_SOUND:-}"
+
+# Parse flags
+while [ $# -gt 0 ]; do
+  case "$1" in
+    --sound) FAAH_SOUND="$2"; shift 2 ;;
+    --success-sound) FAAH_SUCCESS_SOUND="$2"; shift 2 ;;
+    --version|-v) echo "faah $FAAH_VERSION"; exit 0 ;;
+    --help|-h)
+      cat <<EOF
+faah $FAAH_VERSION — a CLI wrapper that plays a sound when your command fails
+
+usage:
+  faah [options] <command> [args...]
+
+options:
+  --sound <name>          sound to play on failure (default: fahhhhh)
+  --success-sound <name>  sound to play on success (optional)
+  --version, -v           show version
+  --help, -h              show this help
+
+environment variables:
+  FAAH_SOUND              default failure sound (default: fahhhhh)
+  FAAH_SUCCESS_SOUND      default success sound (unset by default)
+  FAAH_HOME               sound files directory (default: ~/.faah)
+
+available sounds:
+$(for f in "$FAAH_HOME"/*.mp3; do [ -f "$f" ] && echo "  $(basename "${f%.mp3}")"; done)
+
+examples:
+  faah pytest
+  faah gh run watch
+  faah --sound cat-meow-1 npm test
+  faah --success-sound cat-meow-1 cargo build
+  faah --sound fahhhhh --success-sound cat-meow-1 make deploy
+EOF
+      exit 0
+      ;;
+    *) break ;;
+  esac
+done
+
+if [ $# -eq 0 ]; then
+  echo "usage: faah [options] <command> [args...]"
+  echo "run 'faah --help' for more information"
+  exit 1
+fi
+
+play_sound() {
+  local file="$1"
+  if command -v afplay &>/dev/null; then
+    afplay "$file" &
+  elif command -v paplay &>/dev/null; then
+    paplay "$file" &
+  elif command -v aplay &>/dev/null; then
+    aplay "$file" &
+  elif command -v mpv &>/dev/null; then
+    mpv --no-video "$file" &>/dev/null &
+  elif command -v ffplay &>/dev/null; then
+    ffplay -nodisp -autoexit "$file" &>/dev/null &
+  elif command -v powershell.exe &>/dev/null; then
+    powershell.exe -c "(New-Object Media.SoundPlayer '$(wslpath -w "$file")').PlaySync()" &>/dev/null &
+  fi
+}
+
+"$@"
+exit_code=$?
+
+if [ $exit_code -ne 0 ]; then
+  play_sound "$FAAH_HOME/$FAAH_SOUND.mp3"
+elif [ -n "$FAAH_SUCCESS_SOUND" ]; then
+  play_sound "$FAAH_HOME/$FAAH_SUCCESS_SOUND.mp3"
+fi
+
+exit $exit_code
