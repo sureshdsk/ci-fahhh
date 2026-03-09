@@ -20,25 +20,32 @@ usage:
   faah [options] <command> [args...]
 
 options:
-  --sound <name>          sound to play on failure (default: fahhhhh)
-  --success-sound <name>  sound to play on success (optional)
-  --version, -v           show version
-  --help, -h              show this help
+  --sound <name|path>          sound to play on failure (default: fahhhhh)
+  --success-sound <name|path>  sound to play on success (optional)
+  --version, -v                show version
+  --help, -h                   show this help
+
+sounds:
+  use a built-in name or a path to your own audio file.
+
+  built-in sounds (stored in ~/.faah/):
+$(for f in "$FAAH_HOME"/*.mp3; do [ -f "$f" ] && echo "    $(basename "${f%.mp3}")"; done)
+
+  custom sound:
+    faah --sound /path/to/your/sound.mp3 pytest
+    export FAAH_SOUND=/path/to/your/sound.mp3
 
 environment variables:
-  FAAH_SOUND              default failure sound (default: fahhhhh)
-  FAAH_SUCCESS_SOUND      default success sound (unset by default)
-  FAAH_HOME               sound files directory (default: ~/.faah)
-
-available sounds:
-$(for f in "$FAAH_HOME"/*.mp3; do [ -f "$f" ] && echo "  $(basename "${f%.mp3}")"; done)
+  FAAH_SOUND              failure sound — name or path (default: fahhhhh)
+  FAAH_SUCCESS_SOUND      success sound — name or path (unset by default)
+  FAAH_HOME               built-in sounds directory (default: ~/.faah)
 
 examples:
   faah pytest
   faah gh run watch
   faah --sound cat-meow-1 npm test
-  faah --success-sound cat-meow-1 cargo build
-  faah --sound fahhhhh --success-sound cat-meow-1 make deploy
+  faah --sound /path/to/airhorn.mp3 cargo build
+  faah --success-sound ~/sounds/yay.mp3 make deploy
 EOF
       exit 0
       ;;
@@ -52,8 +59,24 @@ if [ $# -eq 0 ]; then
   exit 1
 fi
 
+# Resolve sound value to a file path.
+# If it contains a / or ends in a sound extension, treat as a path.
+# Otherwise, look up by name in FAAH_HOME.
+resolve_sound() {
+  local val="$1"
+  if [[ "$val" == */* || "$val" == *.mp3 || "$val" == *.wav || "$val" == *.ogg ]]; then
+    echo "$val"
+  else
+    echo "$FAAH_HOME/$val.mp3"
+  fi
+}
+
 play_sound() {
   local file="$1"
+  if [ ! -f "$file" ]; then
+    echo "faah: sound not found: $file" >&2
+    return 1
+  fi
   if command -v afplay &>/dev/null; then
     afplay "$file" &
   elif command -v paplay &>/dev/null; then
@@ -73,9 +96,9 @@ play_sound() {
 exit_code=$?
 
 if [ $exit_code -ne 0 ]; then
-  play_sound "$FAAH_HOME/$FAAH_SOUND.mp3"
+  play_sound "$(resolve_sound "$FAAH_SOUND")"
 elif [ -n "$FAAH_SUCCESS_SOUND" ]; then
-  play_sound "$FAAH_HOME/$FAAH_SUCCESS_SOUND.mp3"
+  play_sound "$(resolve_sound "$FAAH_SUCCESS_SOUND")"
 fi
 
 exit $exit_code

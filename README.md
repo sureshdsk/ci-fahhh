@@ -70,7 +70,21 @@ export FAAH_SUCCESS_SOUND=cat-meow-1
 faah pytest
 ```
 
-Available sounds: `fahhhhh` (default), `cat-meow-1`
+Built-in sounds: `fahhhhh` (default), `cat-meow-1`
+
+### Use your own sound
+
+Pass a file path instead of a name — supports `.mp3`, `.wav`, and `.ogg` files.
+
+```bash
+# via flag
+faah --sound /path/to/airhorn.mp3 pytest
+faah --success-sound ~/sounds/yay.wav make deploy
+
+# via environment variable (add to ~/.bashrc or ~/.zshrc)
+export FAAH_SOUND=/path/to/airhorn.mp3
+export FAAH_SUCCESS_SOUND=~/sounds/yay.wav
+```
 
 ## Supported Platforms
 
@@ -85,8 +99,20 @@ Available sounds: `fahhhhh` (default), `cat-meow-1`
 - "fahhhhh" sound from viral Instagram reels
 - Cat meow sound from [Pixabay](https://pixabay.com)
 
+## Update
+
+Re-run the install script to get the latest version:
+
+```bash
+curl -fsSL get.sureshdsk.dev/faah | bash
+```
+
 ## Uninstall
 
 ```bash
-rm "$(which faah)" && rm -rf ~/.faah
+# remove faah and built-in sounds
+rm "$(which faah)" ~/.faah/fahhhhh.mp3 ~/.faah/cat-meow-1.mp3
+
+# remove ~/.faah only if empty (preserves your custom sounds)
+rmdir ~/.faah 2>/dev/null
 ```
